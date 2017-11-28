@@ -54,17 +54,21 @@ Let us take a look at the dataset's column names to see which visualizations wor
 ```{r}
 names(df)
 ```
-### [THIS IS WHERE I STOPPED]
 ## Crime Rates Decrease, But Proportions Remain the Same (Line Graph)
 
-### Changing the Data We Have to Compare Crime Rates to Crime Proportions (Reformat,Transform, & Visualize)
-Click on the 'Code' button below to see our code. First, we selected the columns for crime rates per 100,000 people and mutated them to be decimals from 0 to 1. 
+### Evaluating average expenditure based on number of collisions (in future, maybe per capita) 
+Click on the 'Code' button below to see our code. First, we selected the columns for states' name, collisions in 2014, and average expenditures in 2014. 
 
-Next, we took the columns that had the absolute number of occurrences for each type of crime, and divided each by the total number of crimes in that year to get each crime's proportion of occurrences per year.
-
-We overlayed these two newly mutated columns to be able to compare crime rates over time to proportions of crimes over time. Below we can see our findings. **It can be observed that although crime rates in general seem to demonstrate a downward trend over the 20 year period, that crime proportions stay relatively stable over time.**
-*(Solid lines depict crime rates while dashed lines depict crime proportions)*
+We created a scatter plot of average expenditure and number of collisions in 2014, with each point representing the data for one state in the United States. Below we can see our findings.
+**Notice the positive trend between the two variables. However, one interesting thing to note is that Oregon and California have similar average insurance expenditures in 2014, despite the fact that California had 72% more collisions than Oregon did in 2014. This is the largest discrepancy between any states with similar expenditure levels. We will examine this phenomena further**
+*(The red points represent Oregon on the left and California on the right)*
 ```{r}
+renderPlot({ 
+  df2 <- df %>% dplyr::select(collision_2014, average_expenditure_2014, state) 
+  g1 <- subset(df2, state == "Oregon")
+  g2 <- subset(df2, state == "California")
+  ggplot() + geom_point(mapping = aes(x=collision_2014,y= average_expenditure_2014), data = df2) + geom_point(mapping = aes(x = collision_2014, y = average_expenditure_2014), colour="red", size=3, data=g1) + geom_point(mapping = aes(x = collision_2014, y = average_expenditure_2014), colour="red", size=3, data=g2)
+  })
 #df2 <- df%>% dplyr::mutate(violent_crime_rate = violent_crime_rate / 100000, murder_rate = murder_rate / 100000, rape_rate = rape_rate / 100000, robbery_rate = robbery_rate / 100000, aggravated_assault_rate = aggravated_assault_rate / 100000, property_crime_rate = property_crime_rate / 100000, burglary_rate = burglary_rate / 100000, larceny_theft_rate = larceny_theft_rate / 100000, motor_vehicle_theft_rate = motor_vehicle_theft / pop) %>%tidyr::gather(violent_crime_rate, murder_rate, rape_rate, aggravated_assault_rate, property_crime_rate, burglary_rate, larceny_theft_rate, motor_vehicle_theft_rate, key = "crime", value = "rate_per_capita")
 
 #df3 <- df%>%dplyr::mutate(prop_murder = murder / (murder+rape+robbery+agg_assault+property_crime+burglary+larceny_theft+motor_vehicle_theft), prop_rape = rape / (murder+rape+robbery+agg_assault+property_crime+burglary+larceny_theft+motor_vehicle_theft), prop_robbery = robbery / (murder+rape+robbery+agg_assault+property_crime+burglary+larceny_theft+motor_vehicle_theft), prop_agg_assault = agg_assault / (murder+rape+robbery+agg_assault+property_crime+burglary+larceny_theft+motor_vehicle_theft), prop_property_crime = property_crime / (murder+rape+robbery+agg_assault+property_crime+burglary+larceny_theft+motor_vehicle_theft), prop_burglary = burglary / (murder+rape+robbery+agg_assault+property_crime+burglary+larceny_theft+motor_vehicle_theft), prop_larceny_theft = larceny_theft / (murder+rape+robbery+agg_assault+property_crime+burglary+larceny_theft+motor_vehicle_theft), prop_motor_vehicle_theft = motor_vehicle_theft / (murder+rape+robbery+agg_assault+property_crime+burglary+larceny_theft+motor_vehicle_theft)) %>% dplyr::select(year, prop_murder:prop_motor_vehicle_theft) %>% tidyr::gather(prop_murder:prop_motor_vehicle_theft, key = 'crime_type', value = 'prop_total_crime')
@@ -79,6 +83,8 @@ myColors <- c("red4", "darkslategray3", "dodgerblue1", "darkcyan","gray79", "bla
   #p
   #})
 ```
+ 
+### [THIS IS WHERE I STOPPED]
 
 ## Cumulative Distribution of Crimes
 In the following example, we used gather, group by, cume_dist, arrange, summarise, and mutate to evaluate the cumulative distribution of crimes. See the table below on how crimes rank from highest to lowest. Click on the 'code' button to see our code.
