@@ -1,14 +1,17 @@
 ---
 title: "Investigating car insurance - Final Project"
-resource_files:
-- .Renviron
+resource_files: .Renviron
+runtime: shiny
 output:
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_depth: '4'
   html_notebook:
     code_folding: hide
     toc: yes
     toc_depth: 4
     toc_float: yes
-runtime: shiny
 ---
 
 ```{r setup, include=FALSE}
@@ -37,9 +40,40 @@ Take a look at our Data model below to understand how the tables we're working w
 ![datamodel](datamodel.png)
 
 ## Inputting the data and cleaning it 
-Let's first import the dataset as a csv from the hard disk and clean the columns so that they are in integers and decimals rather than characters. Click on the 'Code' button to see that we used the 'read_csv' function to read the 'expenditure-insurance.csv' file from the hard disk of the user 'Carlos'. [CARLOS I ASSUME YOU HAVE THIS CODE]
+Let's first import the dataset as a csv from the hard disk and clean the columns so that they are in integers and decimals rather than characters. Click on the 'Code' button to see that we used the 'read_csv' function to read the 'expenditure-insurance.csv' file from the hard disk of the user 'Carlos'.
 ```{r}
-# place cleaning code here
+exp_ins = readr::read_csv("expenditure-insurance.csv", col_types = list(
+  `Liability_2014` = col_number(),
+  `Collision_2014` = col_number(),
+  `Comprehensive_2014` = col_number(),
+  `Average expenditure_2014` = col_number(),
+  `Average expenditure_2013` = col_number(),
+  `Average expenditure percent change 2013-2014` = col_number(),
+  `2012` = col_number(),
+  `2011` = col_number(),
+  `2010` = col_number()
+)) 
+for(n in names(exp_ins)){
+  exp_ins[n] = data.frame(lapply(exp_ins[n], gsub, pattern = '[^ -~]', replacement = ""))
+}
+
+readr::write_csv(exp_ins, "exp_ins_clean.csv")
+
+# Read in and clean "vehiclereg-2013" data and export
+reg2013 = readr::read_csv("vehiclereg-2013.csv")
+for(n in names(reg2013)){
+  reg2013[n] = data.frame(lapply(reg2013[n], gsub, pattern = '[^ -~]', replacement = ""))
+}
+
+readr::write_csv(reg2013, "reg2013_clean.csv")
+ 
+# Read in and clean "vehiclereg-2014" data and export
+reg2014 = readr::read_csv("vehiclereg-2014.csv")
+for(n in names(reg2014)){
+  reg2014[n] = data.frame(lapply(reg2014[n], gsub, pattern = '[^ -~]', replacement = ""))
+}
+
+readr::write_csv(reg2014, "reg2014_clean.csv")
 ```
 Now the columns in the dataframe are either integers (for example: year) or strings (for example: state). Click on the 'Code' button above. You can see that our team exported the new file 'exp_ins_clean.csv' to the hard disk of the same user 'Carlos'. After this step, our team loaded the cleaned csv into data.world for the proceeding steps in the Data Science Pipeline process. 
 
@@ -54,7 +88,99 @@ Let us take a look at the dataset's column names to see which visualizations wor
 ```{r}
 names(df)
 ```
-## Crime Rates Decrease, But Proportions Remain the Same (Line Graph)
+
+## Average Expenditure by state (Bar Chart)
+Here we can see graphs from four year of average expenditure per state and including DC and US average. 
+
+```{r}
+inputPanel(
+  selectInput("selectYear", label = "Select Year", choices = c(2010, 2011, 2012, 2013, 2014), selected = 2010)
+)
+
+expend_by_state = data.world::query(data.world::qry_sql(
+  "SELECT state, average_expenditure_2014, average_expenditure_2013, `2012`, `2011`, `2010`
+  FROM exp_ins_clean"
+), dataset = project)
+
+bar_exp2010 = expend_by_state %>% ggplot(aes(x = state, y = `2010`)) + geom_col() +
+  labs(title = "Expenditure in 2010", x = "State", y = "Average Expenditure") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+bar_exp2011 = expend_by_state %>% ggplot(aes(x = state, y = `2011`)) + geom_col() +
+  labs(title = "Expenditure in 2011", x = "State", y = "Average Expenditure") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+bar_exp2012 = expend_by_state %>% ggplot(aes(x = state, y = `2012`)) + geom_col() +
+  labs(title = "Expenditure in 2012", x = "State", y = "Average Expenditure") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+bar_exp2013 = expend_by_state %>% ggplot(aes(x = state, y = expend_by_state$average_expenditure_2013)) + geom_col() + 
+  labs(title = "Expenditure in 2013", x = "State", y = "Average Expendeture") + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+bar_exp2014 = expend_by_state %>% ggplot(aes(x = state, y = expend_by_state$average_expenditure_2014)) + geom_col() +
+  labs(title = "Expenditure in 2014", x = "State", y = "Average Expenditure") + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+renderPlot({
+  if(input$selectYear == 2010){
+    bar_exp2010
+  } else if(input$selectYear == 2011){
+    bar_exp2011
+  } else if(input$selectYear == 2012){
+    bar_exp2012
+  } else if(input$selectYear == 2013){
+    bar_exp2013
+  } else
+    bar_exp2014
+})
+```
+
+## Average total expenditure vs Total vehicles (Point graph)
+Here we map total personal vehicles and the average expenditure for 8 states that at the end of 2014 had more than $5000 in expenditure
+This grap only has end of year 2014 expenditure.
+
+```{r}
+transport = data.world::query(data.world::qry_sql(
+  "with l1 as (select e.*, case
+  when state = 'D.C.' then 'DC'
+  when state = 'Delaware' then 'DE'
+  when state = 'Florida' then 'FL'
+  when state = 'Louisiana' then 'LA'
+  when state = 'Michigan' then 'MI'
+  when state = 'New Jersey' then 'NJ'
+  when state = 'New York' then 'NY'
+  when state = 'Rhode Island' then 'RI'
+  else state
+  end state_abr
+  from exp_ins_clean e)
+  
+  select l1.average_expenditure_2014, l1.state_abr, de.b08006_002, de.b08006_016 from l1 join de d on l1.state_abr = d.state
+  UNION
+  select l1.average_expenditure_2014, l1.state_abr, la.b08006_002, la.b08006_016 from l1 join la l on l1.state_abr = l.state
+  UNION
+  select l1.average_expenditure_2014, l1.state_abr, fl.b08006_002, fl.b08006_016 from l1 join fl f on l1.state_abr = f.state
+  UNION
+  select l1.average_expenditure_2014, l1.state_abr, mi.b08006_002, mi.b08006_016 from l1 join mi m on l1.state_abr = m.state
+  UNION
+  select l1.average_expenditure_2014, l1.state_abr, nj.b08006_002, nj.b08006_016 from l1 join nj j on l1.state_abr = j.state
+  UNION
+  select l1.average_expenditure_2014, l1.state_abr, ny.b08006_002, ny.b08006_016 from l1 join ny y on l1.state_abr = y.state
+  UNION
+  select l1.average_expenditure_2014, l1.state_abr, ri.b08006_002, ri.b08006_016 from l1 join ri r on l1.state_abr = r.state
+  UNION
+  select l1.average_expenditure_2014, l1.state_abr, dc.b08006_002, dc.b08006_016 from l1 join dc c on l1.state_abr = c.state"), dataset = project)
+
+# Select the specific rows that correspond to the whole
+full_expend = transport %>% dplyr::mutate(total_trnspt = b08006_002 + b08006_016) %>% dplyr::group_by(average_expenditure_2014, state_abr) %>%
+  dplyr::summarise(max_trnspt = max(total_trnspt))
+renderPlot({
+full_expend %>% ggplot() + geom_point(aes(x = average_expenditure_2014, y = max_trnspt, color = state_abr), size = 5) +
+  labs(x = "Average Expenditure", y = "Total Personal Vehicles", title = "Avg expenditure vs Total Vehicles") + scale_y_continuous(labels = scales::comma)
+})
+```
+
+## Change in expenditure for top 5 states w/ highest average expenditure (Line Graph)
 
 ### Evaluating average expenditure based on number of collisions (in future, maybe per capita) 
 Click on the 'Code' button below to see our code. First, we selected the columns for states' name, collisions in 2014, and average expenditures in 2014. 
@@ -73,4 +199,14 @@ renderPlot({
 myColors <- c("red4", "darkslategray3", "dodgerblue1", "darkcyan","gray79", "black", "skyblue2", "dodgerblue4","purple4", "maroon", "chocolate1", "bisque3", "bisque","seagreen4", "lightgreen", "skyblue4", "mediumpurple3","palevioletred1", "lightsalmon4", "darkgoldenrod1")
 
 ```
+
  
+## Index
+# ETL Pipeline:
+CSV Input
+CSV Output
+Data.world input
+Cleaning 
+Regular Expressions
+
+# R input and Understand:
