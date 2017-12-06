@@ -17,7 +17,6 @@ output:
 ```{r setup, include=FALSE}
 library(tidyverse)
 library(data.world)
-library(DT)
 library(shiny)
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -89,6 +88,23 @@ Let us take a look at the dataset's column names to see which visualizations wor
 ```{r}
 names(df)
 ```
+
+## Total average expenditure by end of year 2014
+Here we can see summed average expenditure of insurance by state and includes the whole of the USA and DC.
+The bars in the graph are seperated by the years when the data was collected.
+
+```{r}
+expend = data.world::query(data.world::qry_sql("SELECT * FROM exp_ins_clean"), dataset = project)
+g.expend = expend %>% tidyr::gather(year, expenditure, average_expenditure_2014, average_expenditure_2013,
+                                    `2012`, `2011`, `2010`) %>%
+  dplyr::select(state, year, expenditure)
+
+renderPlot({
+  g.expend %>% ggplot(aes(x = state, y = expenditure)) + geom_col(aes(fill = year)) + 
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+})
+```
+
 
 ## Average Expenditure by state (Bar Chart)
 Here we can see graphs from four year of average expenditure per state and including DC and US average. 
@@ -181,8 +197,6 @@ full_expend %>% ggplot() + geom_point(aes(x = average_expenditure_2014, y = max_
 })
 ```
 
-## Change in expenditure for top 5 states w/ highest average expenditure (Line Graph)
-
 ### Evaluating average expenditure based on number of collisions (in future, maybe per capita) 
 Click on the 'Code' button below to see our code. First, we selected the columns for states' name, collisions in 2014, and average expenditures in 2014. 
 
@@ -232,7 +246,69 @@ renderPlot({
 
 ```
 
- 
+# Changes in expenditure in the states with highest expenditure
+Here we can see the change in expenditure in the states that had more than $5000 in average insurance expenditure by the end of the 2014.
+
+```{r}
+delta_expend = expend %>% tidyr::gather(year, expenditure, average_expenditure_2014, average_expenditure_2013,
+                                        `2012`, `2011`, `2010`) %>%
+  dplyr::select(state, year, expenditure)
+
+delta_expend$year = sub("^.*2014$", "2014", delta_expend$year)
+delta_expend$year = sub("^.*2013$", "2013", delta_expend$year)
+delta_expend$year = as.numeric(as.character(delta_expend$year))
+
+# Get seperate datasets for each state we are interested in
+# DC data
+delta_dc = delta_expend %>% 
+  dplyr::filter(state == "D.C.") %>%
+  dplyr::mutate(lead_exp = expenditure - lead(expenditure))
+  
+# Delaware data
+delta_de = delta_expend %>%
+  dplyr::filter(state == "Delaware") %>%
+  dplyr::mutate(lead_exp = expenditure - lead(expenditure))
+
+# Florida data
+delta_fl = delta_expend %>%
+  dplyr::filter(state == "Florida") %>%
+  dplyr::mutate(lead_exp = expenditure - lead(expenditure))
+
+# Louisiana data
+delta_la = delta_expend %>%
+  dplyr::filter(state == "Louisiana") %>%
+  dplyr::mutate(lead_exp = expenditure - lead(expenditure))
+
+# Michigan data
+delta_mi = delta_expend %>%
+  dplyr::filter(state == "Michigan") %>%
+  dplyr::mutate(lead_exp = expenditure - lead(expenditure))
+
+# New Jersey data
+delta_nj = delta_expend %>%
+  dplyr::filter(state == "New Jersey") %>%
+  dplyr::mutate(lead_exp = expenditure - lead(expenditure))
+
+# New York data
+delta_ny = delta_expend %>%
+  dplyr::filter(state == "New York") %>%
+  dplyr::mutate(lead_exp = expenditure - lead(expenditure))
+
+# Rhode Island data
+delta_ri = delta_expend %>%
+  dplyr::filter(state == "Rhode Island") %>%
+  dplyr::mutate(lead_exp = expenditure - lead(expenditure))
+
+renderPlot({
+line_expend = ggplot(data = delta_dc, aes(x = year, y = lead_exp, color = state)) + geom_line(size = 1) +
+  geom_line(data = delta_de, size = 1) + geom_line(data = delta_fl, size = 1) + geom_line(data = delta_la, size = 1) +
+  geom_line(data = delta_mi, size = 1) + geom_line(data = delta_nj, size = 1) + geom_line(data = delta_ny, size = 1) +
+  geom_line(data = delta_ri, size = 1) + ylab("Delta Expenditure")
+})
+```
+
+Michigan and Louisiana have had constant growth in the last 4 years that the data has been collected, with Michigan having the highest growth rate. Also we see that even if Florida has one of the highest insurance expenditure, we see that it has stedily decreased in the past four years. 
+
 ## Index
 # ETL Pipeline:
 CSV Input(Inputting the data and cleaning it),
