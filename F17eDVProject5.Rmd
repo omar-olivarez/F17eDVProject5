@@ -17,6 +17,7 @@ output:
 ```{r setup, include=FALSE}
 library(tidyverse)
 library(data.world)
+library(DT)
 library(shiny)
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -200,13 +201,55 @@ myColors <- c("red4", "darkslategray3", "dodgerblue1", "darkcyan","gray79", "bla
 
 ```
 
+## Interesting Findings 
+# Distribution of insurance per state
+Here we can see the different amounts of money is spent depending on the type of insurance. 
+We have data on three types of insurance: Liability, Collision, and Comprehensive. 
+
+```{r}
+inputPanel(
+  sliderInput("lowBound", label = "Lower Bound:", min = 500, max = 900, value = 500, step = 20),
+  sliderInput("highBound", label = "Higher Bound", min = 800, max = 1200, value = 800, step = 20)
+)
+
+df = data.world::query(data.world::qry_sql(
+  "with e1 as (select state, average_expenditure_2014, liability_2014, collision_2014, comprehensive_2014 from exp_ins_clean)
+  
+  select e1.state, e1.average_expenditure_2014, e1.liability_2014, e1.collision_2014, e1.comprehensive_2014, usa_all_states.b08006_002 as tot_cars, usa_all_states.b08006_016 as tot_moto from e1 join usa_all_states u on e1.state =u.areaname"
+), dataset = project)
+
+renderTable(
+  df %>% dplyr::filter(between(average_expenditure_2014, input$lowBound, input$highBound)) %>% dplyr::mutate(tot_vehivles = tot_cars + tot_moto)
+)
+
+renderPlot({
+  df %>% dplyr::filter(between(average_expenditure_2014, input$lowBound, input$highBound)) %>%
+    tidyr::gather(key = "ins_type", value = "amount", liability_2014:comprehensive_2014) %>%
+    ggplot() + geom_col(aes(x = state, y = amount, fill = ins_type)) +
+    labs(title =  "Expenditure by insurenace type", x = "State", y = "Expenditure in $") +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+})
+
+```
+
  
 ## Index
 # ETL Pipeline:
-CSV Input
-CSV Output
-Data.world input
-Cleaning 
-Regular Expressions
+CSV Input(Inputting the data and cleaning it),
+CSV Output(Inputting the data and cleaning it),
+Data.world loading,
+Cleaning(Inputting the data and cleaning it), 
+Regular Expressions(Inputting the data and cleaning it)
 
 # R input and Understand:
+Data.world input(Importing data sets),
+Reformating(Change in expenditure for top 5 states w/ highest average expenditure, Distribution of insurance per state)
+
+# Understand
+Dplyr functions(Average Expenditure by state, Average total expenditure vs Total vehicles, Distribution of insurance per state)
+SQL functions(All inputs)
+ggplot
+
+# Communicate
+RMD file
+Shiny functions
